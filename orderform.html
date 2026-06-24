@@ -1,0 +1,151 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Complete Saree Order</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-firestore.js"></script>
+    <script src="https://checkout.razorpay.com/v1/checkout.js"></script>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Segoe UI', sans-serif; }
+        :root { --primary: #800020; --secondary: #4A0E17; --accent: #D4AF37; }
+        body { background: #fdfbfb; padding: 15px; }
+        .header { background: linear-gradient(135deg, var(--primary), var(--secondary)); color: white; padding: 15px; text-align: center; border-radius: 8px; margin-bottom: 20px; }
+        .summary-card { background: white; padding: 15px; border-radius: 8px; box-shadow: 0 2px 10px rgba(0,0,0,0.05); margin-bottom: 20px; border-left: 4px solid var(--accent); }
+        .form-group { margin-bottom: 15px; }
+        .form-group label { display: block; margin-bottom: 5px; font-weight: 600; color: #333; }
+        .form-control { width: 100%; padding: 12px; border: 1px solid #ddd; border-radius: 6px; font-size: 16px; }
+        .btn-pay { background: var(--primary); color: white; border: none; width: 100%; padding: 15px; font-size: 18px; font-weight: bold; border-radius: 6px; cursor: pointer; }
+        .payment-opt { display: flex; gap: 15px; margin-bottom: 15px; }
+        .opt-card { flex: 1; border: 2px solid #eee; padding: 15px; border-radius: 8px; text-align: center; cursor: pointer; font-weight: bold; }
+        .opt-card.selected { border-color: var(--primary); background: #fff5f6; }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h2><i class="fas fa-shopping-bag"></i> Checkout</h2>
+    </div>
+
+    <div class="summary-card">
+        <h3 style="color:var(--secondary); margin-bottom:5px;">Order Summary</h3>
+        <p id="item-name" style="font-weight:600;"></p>
+        <p id="item-total" style="font-size:18px; color:var(--primary); font-weight:700; margin-top:5px;"></p>
+    </div>
+
+    <div style="background:white; padding:20px; border-radius:8px; box-shadow:0 2px 10px rgba(0,0,0,0.05);">
+        <div class="form-group">
+            <label>Full Name *</label>
+            <input type="text" id="name" class="form-control" placeholder="Enter your full name" required>
+        </div>
+        <div class="form-group">
+            <label>Phone Number *</label>
+            <input type="tel" id="phone" class="form-control" placeholder="Enter 10 digit number" required>
+        </div>
+        <div class="form-group">
+            <label>Delivery Address *</label>
+            <textarea id="address" class="form-control" rows="3" placeholder="Complete shipping address" required></textarea>
+        </div>
+
+        <label style="font-weight:600; display:block; margin-bottom:5px;">Payment Method *</label>
+        <div class="payment-opt">
+            <div class="opt-card selected" id="opt-cod" onclick="selectPay('cod')"><i class="fas fa-money-bill-wave"></i><br>COD</div>
+            <div class="opt-card" id="opt-online" onclick="selectPay('online')"><i class="fas fa-credit-card"></i><br>Online</div>
+        </div>
+
+        <button class="btn-pay" id="submit-order">Place Order</button>
+    </div>
+
+    <script>
+        const firebaseConfig = {
+            apiKey: "AIzaSyA_cbxXHAlHIR2iz54U14wuoU4a22KIqFk",
+            authDomain: "e-rest-c6af4.firebaseapp.com",
+            projectId: "e-rest-c6af4",
+            storageBucket: "e-rest-c6af4.firebasestorage.app",
+            messagingSenderId: "734503761157",
+            appId: "1:734503761157:web:b00c47448b07ffdf56736c"
+        };
+        firebase.initializeApp(firebaseConfig);
+        const db = firebase.firestore();
+
+        // Get Device/User ID for tracking
+        function getDeviceUserId() {
+            let id = localStorage.getItem('saree_user_id');
+            if(!id) {
+                id = 'usr_' + Date.now() + Math.random().toString(36).substring(2,7);
+                localStorage.setItem('saree_user_id', id);
+            }
+            return id;
+        }
+        const currentUserId = getDeviceUserId();
+
+        const product = JSON.parse(localStorage.getItem('checkout_product'));
+        if(!product) { alert("No product selected!"); location.href='index.html'; }
+
+        document.getElementById('item-name').textContent = product.name;
+        document.getElementById('item-total').textContent = `Total Payable: ₹${product.finalPrice.toFixed(0)}`;
+
+        let selectedMethod = 'cod';
+        function selectPay(m) {
+            selectedMethod = m;
+            document.getElementById('opt-cod').classList.toggle('selected', m==='cod');
+            document.getElementById('opt-online').classList.toggle('selected', m==='online');
+            document.getElementById('submit-order').textContent = m === 'cod' ? 'Place Order (COD)' : 'Proceed to Pay Online';
+        }
+
+        document.getElementById('submit-order').onclick = function() {
+            const name = document.getElementById('name').value;
+            const phone = document.getElementById('phone').value;
+            const addr = document.getElementById('address').value;
+
+            if(!name || !phone || !addr) { alert("Please complete all details!"); return; }
+
+            if(selectedMethod === 'cod') {
+                saveOrderToFirebase(name, phone, addr, 'cod', 'Pending');
+            } else {
+                startRazorpayPayment(name, phone, addr);
+            }
+        };
+
+        function startRazorpayPayment(name, phone, addr) {
+            var options = {
+                "key": "YOUR_RAZORPAY_KEY_ID", // Yahan apni live key lagayein
+                "amount": (product.finalPrice * 100),
+                "currency": "INR",
+                "name": "Zari & Silk",
+                "description": `Payment for ${product.name}`,
+                "handler": function (response){
+                    saveOrderToFirebase(name, phone, addr, 'online', 'Paid', response.razorpay_payment_id);
+                },
+                "prefill": { "name": name, "contact": phone },
+                "theme": { "color": "#800020" }
+            };
+            var rzp1 = new Razorpay(options);
+            rzp1.open();
+        }
+
+        function saveOrderToFirebase(name, phone, addr, method, payStatus, rpayId = '') {
+            const orderId = 'ORD' + Date.now();
+            db.collection("orders").doc(orderId).set({
+                id: orderId,
+                userId: currentUserId,
+                productName: product.name,
+                productImage: product.image,
+                total: product.finalPrice,
+                customerName: name,
+                phone: phone,
+                deliveryAddress: addr,
+                paymentMethod: method,
+                paymentStatus: payStatus,
+                paymentId: rpayId,
+                status: 'placed',
+                timestamp: firebase.firestore.FieldValue.serverTimestamp()
+            }).then(() => {
+                alert("Order Placed Successfully!");
+                location.href = 'orderhistory.html';
+            });
+        }
+    </script>
+</body>
+</html>
