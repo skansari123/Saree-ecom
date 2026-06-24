@@ -87,23 +87,23 @@
         firebase.initializeApp(firebaseConfig);
         const db = firebase.firestore();
 
-        // Device Lock Engine Check & Creation
-        let deviceTokenId = localStorage.getItem('saree_device_token');
-        if (!deviceTokenId) {
-            deviceTokenId = 'DEV-' + Math.random().toString(36).substring(2, 15) + Date.now().toString(36);
-            localStorage.setItem('saree_device_token', deviceTokenId);
+        // Safe Device Lock Setup
+        let currentUserId = localStorage.getItem('saree_user_id');
+        if (!currentUserId) {
+            // Agar purana user id nahi hai to automatic safe token generation mapping create hogi
+            currentUserId = 'DEV-' + Math.random().toString(36).substring(2, 15) + Date.now().toString(36);
+            localStorage.setItem('saree_user_id', currentUserId);
         }
 
         const container = document.getElementById('history-container');
         let selectedOrder = null;
         let pressTimer;
 
-        // Fetch orders securely bound ONLY to this unique browser storage session instance
+        // Fetch orders filtering securely via standard user device authentication loop
         db.collection("orders")
-          .where("deviceToken", "==", deviceTokenId)
+          .where("userId", "==", currentUserId)
           .onSnapshot((snapshot) => {
               container.innerHTML = '';
-              // Exclude documents removed locally by the user console view
               let visibleCount = 0;
               
               snapshot.forEach(doc => {
@@ -111,10 +111,9 @@
                   if (data.status === 'deleted_by_user') return;
                   visibleCount++;
 
-                  // >>> TIMING METRIC CONFIGURATION <<<
-                  // Variable definition tracking calculation windows
+                  // >>> TIMING METRIC CONFIGURATION TRACKER <<<
                   const orderMs = data.timestamp ? data.timestamp.seconds * 1000 : Date.now();
-                  const fourDaysInMs = 4 * 24 * 60 * 60 * 1000; // 4 Days limit tracker variable
+                  const fourDaysInMs = 4 * 24 * 60 * 60 * 1000; // 4 Days Tracker Parameter
                   const isExpired = (Date.now() - orderMs) > fourDaysInMs;
 
                   const card = document.createElement('div');
@@ -125,7 +124,7 @@
                           <div class="order-details">
                               <h4 style="color:var(--secondary); font-family:serif;">${data.productName}</h4>
                               <p style="font-size:13px; color:#666; margin-top:2px;">ID: ${data.id}</p>
-                              <p style="font-weight:700; margin-top:4px; color:var(--primary)">₹${data.totalCalculatedAmount || data.price || data.total || 0}</p>
+                              <p style="font-weight:700; margin-top:4px; color:var(--primary)">₹${data.total || data.price || data.totalCalculatedAmount || 0}</p>
                               <span class="status-badge status-${data.status}">${data.status}</span>
                               ${isExpired && data.status === 'placed' ? '<span class="expiry-lbl"><i class="fas fa-hourglass-end"></i> Cancellation/Edit Expired</span>' : ''}
                           </div>
@@ -137,7 +136,7 @@
                       </div>
                   `;
 
-                  // Contextual Long-press binding trigger logic
+                  // Rigging Touch Events for Long Press Recognition
                   const bindEvent = (el) => {
                       el.addEventListener('touchstart', (e) => startPress(e, data, isExpired));
                       el.addEventListener('touchend', endPress);
@@ -154,7 +153,6 @@
           });
 
         function startPress(e, order, isExpired) {
-            // Setup mobile long-press loop timer trigger
             pressTimer = setTimeout(() => {
                 selectedOrder = order;
                 document.getElementById('backdrop').classList.add('active');
