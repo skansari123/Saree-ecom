@@ -1,0 +1,226 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>My Saree Order History</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-firestore.js"></script>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Segoe UI', sans-serif; }
+        :root { --primary: #800020; --secondary: #4A0E17; --accent: #D4AF37; }
+        body { background: #fdfbfb; padding: 15px; user-select: none; -webkit-user-select: none; }
+        .header { background: linear-gradient(135deg, var(--primary), var(--secondary)); color: white; padding: 15px; display: flex; justify-content: space-between; align-items: center; border-radius: 8px; margin-bottom: 15px; }
+        .order-card { background: white; padding: 15px; border-radius: 12px; box-shadow: 0 4px 12px rgba(0,0,0,0.05); display: flex; flex-direction: column; gap: 12px; margin-bottom: 15px; border: 1px solid #f1eaea; }
+        .product-info-row { display: flex; gap: 15px; }
+        .order-img { width: 75px; height: 95px; object-fit: cover; border-radius: 6px; }
+        .order-details { flex: 1; }
+        .customer-meta-box { background: #fdf8f8; padding: 10px; border-radius: 8px; border-left: 3px solid var(--accent); font-size: 13px; color: #444; line-height: 1.5; }
+        .status-badge { display: inline-block; padding: 4px 10px; border-radius: 12px; font-size: 11px; font-weight: bold; margin-top: 5px; text-transform: uppercase; }
+        .status-placed { background: #e3f2fd; color: #1976d2; }
+        .status-cancelled { background: #ffebee; color: #c62828; }
+        .status-delivered { background: #e8f5e9; color: #2e7d32; }
+        .expiry-lbl { font-size: 11px; color: #d32f2f; font-weight: 600; margin-top: 5px; display: block; }
+
+        /* Floating App Menu */
+        .lp-menu { display: none; position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); background: white; border-radius: 12px; box-shadow: 0 10px 30px rgba(0,0,0,0.3); z-index: 500; width: 260px; text-align: center; overflow: hidden; }
+        .lp-menu.active { display: block; }
+        .lp-item { padding: 16px; border-bottom: 1px solid #eee; cursor: pointer; font-weight: 600; font-size: 15px; transition: background 0.2s; }
+        .lp-item:active { background: #f5f5f5; }
+        .lp-backdrop { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 450; backdrop-filter: blur(2px); }
+        .lp-backdrop.active { display: block; }
+
+        /* Edit Sheet Modal */
+        .edit-modal { display: none; position: fixed; bottom: 0; left: 0; width: 100%; background: white; border-radius: 20px 20px 0 0; box-shadow: 0 -5px 25px rgba(0,0,0,0.2); z-index: 600; padding: 20px; transition: transform 0.3s ease; }
+        .edit-modal.active { display: block; }
+        .form-group { margin-bottom: 15px; }
+        .form-group label { display: block; font-size: 13px; font-weight: 600; margin-bottom: 5px; color: var(--secondary); }
+        .form-group input, .form-group textarea { width: 100%; padding: 10px; border: 1px solid #ccc; border-radius: 8px; font-size: 14px; outline: none; color-scheme: light; }
+        .update-btn { background: var(--primary); color: white; border: none; padding: 12px; width: 100%; border-radius: 8px; font-size: 16px; font-weight: bold; cursor: pointer; margin-top: 5px; }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <button onclick="location.href='index.html'" style="background:none; border:none; color:white; font-size:18px; cursor:pointer;"><i class="fas fa-arrow-left"></i></button>
+        <h2>My Saree Orders</h2>
+        <div></div>
+    </div>
+
+    <div id="history-container"></div>
+
+    <div class="lp-backdrop" id="backdrop" onclick="closeMenu()"></div>
+    <div class="lp-menu" id="menu">
+        <div class="lp-item" id="edit-action" style="color: #1976d2;"><i class="fas fa-edit"></i> Edit Details</div>
+        <div class="lp-item" id="cancel-action" style="color: #c62828;"><i class="fas fa-times-circle"></i> Cancel Order</div>
+        <div class="lp-item" id="delete-action" style="color: #757575;"><i class="fas fa-trash-alt"></i> Delete Record</div>
+        <div class="lp-item" style="color:#555; background: #fafafa;" onclick="closeMenu()">Dismiss</div>
+    </div>
+
+    <div class="edit-modal" id="edit-sheet">
+        <h3 style="margin-bottom:15px; color:var(--primary); font-family:serif;">Update Order Details</h3>
+        <div class="form-group">
+            <label>Customer Name</label>
+            <input type="text" id="edit-name">
+        </div>
+        <div class="form-group">
+            <label>Phone Number</label>
+            <input type="tel" id="edit-phone">
+        </div>
+        <div class="form-group">
+            <label>Delivery Address</label>
+            <textarea id="edit-address" rows="3"></textarea>
+        </div>
+        <button class="update-btn" onclick="saveEditedDetails()">Update Order</button>
+        <button class="update-btn" style="background:#eee; color:#333; margin-top:8px;" onclick="closeEditSheet()">Cancel</button>
+    </div>
+
+    <script>
+        const firebaseConfig = {
+            apiKey: "AIzaSyA_cbxXHAlHIR2iz54U14wuoU4a22KIqFk",
+            authDomain: "e-rest-c6af4.firebaseapp.com",
+            projectId: "e-rest-c6af4",
+            storageBucket: "e-rest-c6af4.firebasestorage.app",
+            messagingSenderId: "734503761157",
+            appId: "1:734503761157:web:b00c47448b07ffdf56736c"
+        };
+        firebase.initializeApp(firebaseConfig);
+        const db = firebase.firestore();
+
+        // Device Lock Engine Check & Creation
+        let deviceTokenId = localStorage.getItem('saree_device_token');
+        if (!deviceTokenId) {
+            deviceTokenId = 'DEV-' + Math.random().toString(36).substring(2, 15) + Date.now().toString(36);
+            localStorage.setItem('saree_device_token', deviceTokenId);
+        }
+
+        const container = document.getElementById('history-container');
+        let selectedOrder = null;
+        let pressTimer;
+
+        // Fetch orders securely bound ONLY to this unique browser storage session instance
+        db.collection("orders")
+          .where("deviceToken", "==", deviceTokenId)
+          .onSnapshot((snapshot) => {
+              container.innerHTML = '';
+              // Exclude documents removed locally by the user console view
+              let visibleCount = 0;
+              
+              snapshot.forEach(doc => {
+                  const data = doc.data();
+                  if (data.status === 'deleted_by_user') return;
+                  visibleCount++;
+
+                  // >>> TIMING METRIC CONFIGURATION <<<
+                  // Variable definition tracking calculation windows
+                  const orderMs = data.timestamp ? data.timestamp.seconds * 1000 : Date.now();
+                  const fourDaysInMs = 4 * 24 * 60 * 60 * 1000; // 4 Days limit tracker variable
+                  const isExpired = (Date.now() - orderMs) > fourDaysInMs;
+
+                  const card = document.createElement('div');
+                  card.className = 'order-card';
+                  card.innerHTML = `
+                      <div class="product-info-row">
+                          <img src="${data.productImage || 'https://via.placeholder.com/75x95'}" class="order-img">
+                          <div class="order-details">
+                              <h4 style="color:var(--secondary); font-family:serif;">${data.productName}</h4>
+                              <p style="font-size:13px; color:#666; margin-top:2px;">ID: ${data.id}</p>
+                              <p style="font-weight:700; margin-top:4px; color:var(--primary)">₹${data.totalCalculatedAmount || data.price || data.total || 0}</p>
+                              <span class="status-badge status-${data.status}">${data.status}</span>
+                              ${isExpired && data.status === 'placed' ? '<span class="expiry-lbl"><i class="fas fa-hourglass-end"></i> Cancellation/Edit Expired</span>' : ''}
+                          </div>
+                      </div>
+                      <div class="customer-meta-box">
+                          <strong><i class="fas fa-user"></i>:</strong> ${data.customerName || 'N/A'}<br>
+                          <strong><i class="fas fa-phone"></i>:</strong> ${data.phone || 'N/A'}<br>
+                          <strong><i class="fas fa-map-marker-alt"></i>:</strong> ${data.deliveryAddress || 'N/A'}
+                      </div>
+                  `;
+
+                  // Contextual Long-press binding trigger logic
+                  const bindEvent = (el) => {
+                      el.addEventListener('touchstart', (e) => startPress(e, data, isExpired));
+                      el.addEventListener('touchend', endPress);
+                      el.addEventListener('mousedown', (e) => startPress(e, data, isExpired));
+                      el.addEventListener('mouseup', endPress);
+                  };
+                  bindEvent(card);
+                  container.appendChild(card);
+              });
+
+              if(visibleCount === 0) {
+                  container.innerHTML = '<p style="text-align:center; margin-top:40px; color:#666;">No orders found on this device.</p>';
+              }
+          });
+
+        function startPress(e, order, isExpired) {
+            // Setup mobile long-press loop timer trigger
+            pressTimer = setTimeout(() => {
+                selectedOrder = order;
+                document.getElementById('backdrop').classList.add('active');
+                document.getElementById('menu').classList.add('active');
+
+                const editBtn = document.getElementById('edit-action');
+                const cancelBtn = document.getElementById('cancel-action');
+
+                if(isExpired || order.status !== 'placed') {
+                    editBtn.style.display = "none";
+                    cancelBtn.style.display = "none";
+                } else {
+                    editBtn.style.display = "block";
+                    cancelBtn.style.display = "block";
+                    
+                    editBtn.onclick = openEditSheet;
+                    cancelBtn.onclick = performCancellation;
+                }
+                
+                document.getElementById('delete-action').onclick = performLocalDeletion;
+            }, 700);
+        }
+
+        function endPress() { clearTimeout(pressTimer); }
+        function closeMenu() { document.getElementById('backdrop').classList.remove('active'); document.getElementById('menu').classList.remove('active'); }
+
+        function openEditSheet() {
+            closeMenu();
+            document.getElementById('edit-name').value = selectedOrder.customerName || '';
+            document.getElementById('edit-phone').value = selectedOrder.phone || '';
+            document.getElementById('edit-address').value = selectedOrder.deliveryAddress || '';
+            document.getElementById('edit-sheet').classList.add('active');
+        }
+
+        function closeEditSheet() { document.getElementById('edit-sheet').classList.remove('active'); }
+
+        function saveEditedDetails() {
+            const uName = document.getElementById('edit-name').value.trim();
+            const uPhone = document.getElementById('edit-phone').value.trim();
+            const uAddress = document.getElementById('edit-address').value.trim();
+
+            if(!uName || !uPhone || !uAddress) { alert("Fields cannot be empty"); return; }
+
+            db.collection("orders").doc(selectedOrder.id).update({
+                customerName: uName,
+                phone: uPhone,
+                deliveryAddress: uAddress
+            }).then(() => {
+                alert("Order updated successfully!");
+                closeEditSheet();
+            });
+        }
+
+        function performCancellation() {
+            if(confirm("Do you really want to cancel this saree order?")) {
+                db.collection("orders").doc(selectedOrder.id).update({ status: 'cancelled' })
+                  .then(() => { alert("Order Cancelled."); closeMenu(); });
+            }
+        }
+
+        function performLocalDeletion() {
+            if(confirm("Remove this order record from history screen?")) {
+                db.collection("orders").doc(selectedOrder.id).update({ status: 'deleted_by_user' })
+                  .then(() => { closeMenu(); });
+            }
+        }
+    </script>
+</body>
+</html>
