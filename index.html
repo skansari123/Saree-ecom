@@ -3,8 +3,54 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Banaras Silk Art-7  - Premium Saree Collection</title>
-    <meta name="description" content="Shop beautiful premium sarees online. Choose from Banarasi, Kanjeevaram, Organza, and Georgette collections.">
+    
+    <!-- ====== START: SEO SMART TAGS FOR SAREE E-COMMERCE ====== -->
+    <title>Banaras Silk Art-7 - Premium Banarasi Saree Collection</title>
+    <meta name="description" content="Shop beautiful premium sarees online. Choose from Banarasi, Kanjeevaram, Organza, and silk saree collections.">
+    <meta name="keywords" content="Banaras Silk Art-7, buy sarees online, premium banarasi saree, soft silk sarees, bridal saree collection, online saree shopping, traditional wedding sarees">
+    <meta name="author" content="Banaras Silk Art-7">
+
+    <!-- ====== ADDED: Canonical Tag ====== -->
+    <link rel="canonical" href="https://silk-art-7.vercel.app/index.html">
+
+    <!-- ====== ADDED: Robots Meta ====== -->
+    <meta name="robots" content="index, follow">
+
+    <!-- ====== ADDED: Open Graph Tags (WhatsApp / Instagram / Facebook preview) ====== -->
+    <meta property="og:type" content="website">
+    <meta property="og:title" content="Banaras Silk Art-7 - Premium Saree Collection">
+    <meta property="og:description" content="Shop beautiful premium sarees online. Choose from Banarasi, Kanjeevaram, Organza, and Georgette collections.">
+    <meta property="og:url" content="https://silk-art-7.vercel.app/index.html">
+    <meta property="og:site_name" content="Banaras Silk Art-7">
+
+    <!-- ====== ADDED: Twitter Card Tags ====== -->
+    <meta name="twitter:card" content="summary_large_image">
+    <meta name="twitter:title" content="Banaras Silk Art-7 - Premium Saree Collection">
+    <meta name="twitter:description" content="Shop beautiful premium sarees online. Choose from Banarasi, Kanjeevaram, Organza, and Georgette collections.">
+
+    <!-- ====== ADDED: Structured Data (Schema.org Store) for rich Google results ====== -->
+    <script type="application/ld+json">
+    {
+      "@context": "https://schema.org",
+      "@type": "Store",
+      "name": "Banaras Silk Art-7",
+      "alternateName": "Ayesha Sarees",
+      "url": "https://silk-art-7.vercel.app/index.html",
+      "description": "Shop beautiful premium sarees online. Choose from Banarasi, Kanjeevaram, Organza, and Georgette collections.",
+      "address": {
+        "@type": "PostalAddress",
+        "addressLocality": "Varanasi",
+        "addressRegion": "Uttar Pradesh",
+        "addressCountry": "IN"
+      },
+      "sameAs": [
+        "https://instagram.com/banarassilkart7"
+      ],
+      "telephone": "+917380879415"
+    }
+    </script>
+    <!-- ====== END: SEO SMART TAGS ====== -->
+
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
     <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-firestore.js"></script>
@@ -141,8 +187,8 @@
                 <li><a href="#" class="sidebar-link" data-category="others"><i class="fas fa-ellipsis-h"></i> Others</a></li>
                 
                 <div class="sidebar-divider"></div>
-                <li><a href="#" id="menu-about"><i class="fas fa-info-circle"></i> About Us</a></li>
-                <li><a href="https://skansari123.github.io/Saree-ecom/contactus.html " id="menu-contact"><i class="fas fa-envelope"></i> Contact Us</a></li>
+                <li><a href="https://silk-art-7.vercel.app/aboutus.html" id="menu-about"><i class="fas fa-info-circle"></i> About Us</a></li>
+                <li><a href="https://silk-art-7.vercel.app/contactus.html" id="menu-contact"><i class="fas fa-envelope"></i> Contact Us</a></li>
             </ul>
         </aside>
         <div class="overlay" id="overlay"></div>
@@ -155,8 +201,8 @@
 
         <footer class="black-footer">
             <div class="footer-links">
-                <a href="#">About Us</a>
-                <a href="https://skansari123.github.io/Saree-ecom/contactus.html">Contact Us</a>
+                <a href="https://silk-art-7.vercel.app/aboutus.html">About Us</a>
+                <a href="https://silk-art-7.vercel.app/contactus.html">Contact Us</a>
             </div>
             <div>&copy; 2026 Banaras Silk Art-7. All Rights Reserved.</div>
         </footer>
@@ -264,10 +310,12 @@
                 }
                 const card = document.createElement('div');
                 card.className = 'product-card';
+                
+                // FIXED FOR SEO: DYNAMIC IMAGE ALT ATTRIBUTE ADDED
                 card.innerHTML = `
                     ${!p.available ? '<div class="badge un-badge">Out of Stock</div>' : ''}
                     ${p.offerEnabled ? `<div class="badge offer-badge">${p.offerRate}% OFF</div>` : ''}
-                    <img src="${p.image}" class="product-image" loading="lazy">
+                    <img src="${p.image}" alt="${p.name} - Banaras Silk Art-7" class="product-image" loading="lazy">
                     <div class="product-info">
                         <div class="product-name">${p.name}</div>
                         <div class="product-price">${priceHTML}</div>
@@ -288,6 +336,7 @@
             
             document.getElementById('qty-count').innerText = currentQuantity;
             document.getElementById('modal-image').src = p.image;
+            document.getElementById('modal-image').alt = p.name; // FIXED FOR SEO: DYNAMIC MODAL IMAGE ALT
             document.getElementById('modal-title').textContent = p.name;
             document.getElementById('modal-price').innerHTML = `₹${baseProductPrice.toFixed(0)}`;
             document.getElementById('modal-description').textContent = p.description;
